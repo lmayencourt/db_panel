@@ -13,7 +13,7 @@ from adafruit_debouncer import Debouncer
 
 MATRIX_WIDTH = 32
 MATRIX_HEIGHT = 32
-DELAY = 0.05
+DELAY = 0.2
 
 #--------------------------------------------
 # Matrix
@@ -53,16 +53,22 @@ microphone = AnalogIn(board.A0)
 def get_audio():
     return (microphone.value-3276.8)/32
 
-def get_audio_mean(sample_nbr):
+def get_audio_applitude(sample_nbr):
     meas_max = 0
     meas_min = 1024
-    for i in range(0, 200):
+    for i in range(0, sample_nbr):
         measurement = get_audio()
         if measurement > meas_max:
             meas_max = measurement
         if measurement < meas_min:
             meas_min = measurement
-    return meas_max-meas_min
+    return abs(meas_max-meas_min)
+
+def get_audio_mean(sample_nbr):
+    mean = 0
+    for i in range(0, sample_nbr):
+        mean += get_audio()/sample_nbr
+    return mean
 
 #--------------------------------------------
 # Button
@@ -83,7 +89,7 @@ def update_display():
 def draw_bar(idx, level, color):
     for x in range(0,MATRIX_HEIGHT-1):
         if x < level-3:
-            bitmap[idx, x] = 2
+            bitmap[idx, x] = color
         elif x < level-1:
             bitmap[idx, x] = 5
         else:
@@ -101,28 +107,43 @@ display.show(text_area)
 time.sleep(1)
 display.show(group)
 mean = 16
-mode = 1
+mode = 0
+bar = [0] * 32
 while True:
     button_down.update()
     button_up.update()
     if button_up.fell:
-        mean = mean + 1
+        mode = mode + 1
     if button_down.fell:
-        mean = mean - 1
-    if mean <= 0:
-        mean = 0
-    elif mean > 31:
-        mean = 31
+        mode = mode - 1
+    if mode <= 0:
+        mode = 0
+    elif mode > 2:
+        mode = 2
 
-    if mode == 1:
+    if mode == 0:
         # microphone value scalled to 0->1024 values
-        audio_level = get_audio_mean(200)
-        draw_bar(0, audio_level/32, 3)
-        print('audio mean value: ', audio_level)
+        for idx in range(MATRIX_WIDTH-1, 0, -1):
+            bar[idx] = bar[idx-1]
+            draw_bar(idx, bar[idx], 1)
+        bar[0] = get_audio_mean(200)/32
+        draw_bar(0, bar[0], 1)
+        print('audio mean value: ', bar[0])
+    elif mode == 1:
+        for idx in range(MATRIX_WIDTH-1, 0, -1):
+            bar[idx] = bar[idx-1]
+            draw_bar(idx, bar[idx], 2)
+        bar[0] = get_audio_applitude(200)/32
+        draw_bar(0, bar[0], 2)
+        print('audio applitude value: ', bar[0])
+    elif mode == 2:
+        for idx in range(MATRIX_WIDTH-1, 0, -1):
+            bar[idx] = bar[idx-1]
+            draw_bar(idx, bar[idx], 3)
+        value = get_audio()
+        draw_bar(0, value/32, 3)
+        print('audio value: ', value)
     else:
-        for idx in range(5,MATRIX_WIDTH):
-            draw_bar(idx, mean + random.randint(0,10), 3)
-        print(mean)
+        print('not a valid mode: ', mode)
     update_display()
     time.sleep(DELAY)
-    print('end...loop back')
