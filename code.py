@@ -2,6 +2,7 @@ import board
 import time
 import math
 import random
+import array
 import ulab
 import ulab.fft
 import displayio
@@ -13,7 +14,7 @@ from adafruit_debouncer import Debouncer
 
 MATRIX_WIDTH = 32
 MATRIX_HEIGHT = 32
-DELAY = 0.2
+DELAY = 1.0
 
 #--------------------------------------------
 # Matrix
@@ -49,9 +50,9 @@ microphone = AnalogIn(board.A0)
 # Microphone returns a value of 1.25v +/- 2vpp,
 # range is then 0.25 to 2.25 -> 0 to ~32768
 # 0.25 offset is 3276.8.
-# scale to to 0-> 1024
+# scale to to 0-> 1024 (~750 max observed)
 def get_audio():
-    return (microphone.value-3276.8)/32
+    return max(0,(microphone.value-(65536/4))/32)
 
 def get_audio_applitude(sample_nbr):
     meas_max = 0
@@ -69,6 +70,25 @@ def get_audio_mean(sample_nbr):
     for i in range(0, sample_nbr):
         mean += get_audio()/sample_nbr
     return mean
+
+def get_audio_positive_only_applitude(sample_nbr):
+    mean = 0
+    for i in range(0, sample_nbr):
+        value = get_audio()-232
+        if value < 0:
+            mean += (-1*value)/sample_nbr
+        else:
+            mean += value/sample_nbr
+    return mean
+
+fft_size = 256
+def get_fft():
+    samples_bit = ulab.array([0] * (fft_size))
+    start_time = time.monotonic()
+    for i in range(0, fft_size):
+        samples_bit[i] = int(get_audio()/32)
+    print('sampled 256 in: %s' % (time.monotonic() - start_time))
+    return ulab.fft.spectrogram(samples_bit)
 
 #--------------------------------------------
 # Button
@@ -107,8 +127,9 @@ display.show(text_area)
 time.sleep(1)
 display.show(group)
 mean = 16
-mode = 0
+mode = 5
 bar = [0] * 32
+mode_nbr = mode
 while True:
     button_down.update()
     button_up.update()
@@ -118,8 +139,8 @@ while True:
         mode = mode - 1
     if mode <= 0:
         mode = 0
-    elif mode > 2:
-        mode = 2
+    elif mode > mode_nbr:
+        mode = mode_nbr
 
     if mode == 0:
         # microphone value scalled to 0->1024 values
@@ -140,9 +161,30 @@ while True:
         for idx in range(MATRIX_WIDTH-1, 0, -1):
             bar[idx] = bar[idx-1]
             draw_bar(idx, bar[idx], 3)
-        value = get_audio()
-        draw_bar(0, value/32, 3)
-        print('audio value: ', value)
+        bar[0] = get_audio()/32
+        draw_bar(0, bar[0], 3)
+        print('audio value: ', bar[0])
+    elif mode == 3:
+        for idx in range(MATRIX_WIDTH-1, 0, -1):
+            bar[idx] = bar[idx-1]
+            draw_bar(idx, bar[idx], 2)
+        bar[0] = get_audio_positive_only_applitude(200)/2
+        draw_bar(0, bar[0], 4)
+        print('audio positive only value: ', bar[0])
+    elif mode == 4:
+        spectrogram = get_fft()
+        #print(spectrogram)
+        for idx in range(0,256):
+            print(f'( {spectrogram[idx]}, {idx})')
+
+        for idx in range(0, MATRIX_WIDTH):
+            bar[idx] = 0;
+            for ydx in range(0, 8):
+                bar[idx] += spectrogram[idx+ydx]/64
+            draw_bar(idx, bar[idx], 2)
+
+    elif mode == 5:
+        print('(', get_audio(), ', )')
     else:
         print('not a valid mode: ', mode)
     update_display()
