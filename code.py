@@ -47,9 +47,9 @@ def update_display():
     #bitmap.fill(0)
     display.auto_refresh = True
 
-def draw_text(text, x=10, y=10):
+def draw_text(text, x=15, y=15, color=0xffffff):
     display.rotation=180
-    text_area = label.Label(terminalio.FONT, text=text, x=x, y=y)
+    text_area = label.Label(terminalio.FONT, text=text, x=x, y=y, color=color)
     display.show(text_area)
 
 def draw_graph():
@@ -66,6 +66,7 @@ def draw_bar(idx, level, color):
             bitmap[idx, x] = 0
 
 def draw_historygram(value, color=2):
+    draw_graph()
     for idx in range(MATRIX_WIDTH-1, 0, -1):
         bar[idx] = bar[idx -1]
         draw_bar(idx, bar[idx], color)
@@ -157,21 +158,26 @@ time.sleep(2)
 draw_graph()
 print('start logs')
 mean = 16
-mode = 6
-old_mode = 0
-mode_nbr = mode
-sensitivity = 1
+mode = 0
+old_mode = 4
+mode_nbr = old_mode
+threshold = 20
 while True:
     button_down.update()
     button_up.update()
     if button_up.fell:
-        mode = mode + 1
+        threshold = threshold + 1
+    if threshold <= 0:
+        threshold = 0
+    elif threshold >= 31:
+        threshold = 0
+    
     if button_down.fell:
-        mode = mode - 1
+        mode = mode + 1
     if mode <= 0:
         mode = 0
-    elif mode > mode_nbr:
-        mode = mode_nbr
+    elif mode >= mode_nbr:
+        mode = 0
 
     if mode != old_mode:
         draw_text(str(mode))
@@ -180,35 +186,18 @@ while True:
         old_mode = mode
 
     if mode == 0:
-        # microphone value scalled to 0->1024 values
-        for idx in range(MATRIX_WIDTH-1, 0, -1):
-            bar[idx] = bar[idx-1]
-            draw_bar(idx, bar[idx], 1)
-        bar[0] = get_audio_mean(200)/32
-        draw_bar(0, bar[0], 1)
-        print('audio mean value: ', bar[0])
+        # Print cumulated FFT values
+        value = get_cumulated_fft_values(1)
+        if value >= threshold:
+            draw_text(str(int(value)), x=10, y=15, color=0xff0000)
+        else:
+            draw_text(str(int(value)), x=10, y=15, color=0x00ff00)
     elif mode == 1:
-        for idx in range(MATRIX_WIDTH-1, 0, -1):
-            bar[idx] = bar[idx-1]
-            draw_bar(idx, bar[idx], 2)
-        bar[0] = get_audio_applitude(200)/32
-        draw_bar(0, bar[0], 2)
-        print('audio applitude value: ', bar[0])
+        # Draw cumulated FFT values historigram
+        draw_historygram(get_cumulated_fft_values(2))
     elif mode == 2:
-        for idx in range(MATRIX_WIDTH-1, 0, -1):
-            bar[idx] = bar[idx-1]
-            draw_bar(idx, bar[idx], 3)
-        bar[0] = get_audio()/32
-        draw_bar(0, bar[0], 3)
-        print('audio value: ', bar[0])
-    elif mode == 3:
-        for idx in range(MATRIX_WIDTH-1, 0, -1):
-            bar[idx] = bar[idx-1]
-            draw_bar(idx, bar[idx], 2)
-        bar[0] = get_audio_positive_only_applitude(200)/2
-        draw_bar(0, bar[0], 4)
-        print('audio positive only value: ', bar[0])
-    elif mode == 4:
+        # Draw FFT spectrogram
+        draw_graph()
         spectrogram = get_fft()
         for idx in range(0,256):
             print(f'( {spectrogram[idx]}, {idx})')
@@ -218,18 +207,11 @@ while True:
             for ydx in range(0, 8):
                 bar[idx] += spectrogram[idx+ydx]/64
             draw_bar(idx, bar[idx], 2)
-    elif mode == 5:
-
-        #bar[0] = get_cumulated_fft_values(2)
-        #bar[0] = get_audio_max(100)
-
-        draw_historygram(get_audio_max(100))
-        print('(', bar[0], ', )')
-    elif mode == 6:
-        for idx in range(0, 20):
-            #print('(', get_audio(), ', )')
-            print('(', microphone.value, ', )')
+    elif mode == 3:
+        # Change threshold
+        draw_text('Threshold')
     else:
-        print('not a valid mode: ', mode)
+        print('Unvalid mode')
+
     update_display()
     time.sleep(DELAY)
