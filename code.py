@@ -12,9 +12,17 @@ from adafruit_display_text import label
 from adafruit_matrixportal.matrix import Matrix
 from adafruit_debouncer import Debouncer
 
+#--------------------------------------------
+# Globals
+#--------------------------------------------
 MATRIX_WIDTH = 32
 MATRIX_HEIGHT = 32
 DELAY = 0.1
+
+mode = 0
+old_mode = 4
+mode_nbr = old_mode
+threshold = 20
 
 #--------------------------------------------
 # Matrix
@@ -47,7 +55,7 @@ def update_display():
     #bitmap.fill(0)
     display.auto_refresh = True
 
-def draw_text(text, x=15, y=15, color=0xffffff):
+def draw_text(text, x=14, y=12, color=0xffffff):
     display.rotation=180
     text_area = label.Label(terminalio.FONT, text=text, x=x, y=y, color=color)
     display.show(text_area)
@@ -58,10 +66,13 @@ def draw_graph():
 
 def draw_bar(idx, level, color):
     for x in range(0,MATRIX_HEIGHT-1):
-        if x < level-3:
-            bitmap[idx, x] = color
-        elif x < level-1:
-            bitmap[idx, x] = 5
+        if x < level:
+            if x < threshold-3:
+                bitmap[idx, x] = color
+            elif x < threshold:
+                bitmap[idx, x] = 5
+            else:
+                bitmap[idx, x] = 1
         else:
             bitmap[idx, x] = 0
 
@@ -152,25 +163,20 @@ button_up = Debouncer(pin_up)
 #--------------------------------------------
 # Main
 #--------------------------------------------
-print('start demo')
-draw_text('dB')
+print('start title')
+draw_text('dB', x= 10)
 time.sleep(2)
 draw_graph()
-print('start logs')
-mean = 16
-mode = 0
-old_mode = 4
-mode_nbr = old_mode
-threshold = 20
+print('start')
 while True:
     button_down.update()
     button_up.update()
     if button_up.fell:
         threshold = threshold + 1
-    if threshold <= 0:
-        threshold = 0
-    elif threshold >= 31:
-        threshold = 0
+    if threshold <= 1:
+        threshold = 1
+    elif threshold > 31:
+        threshold = 1
     
     if button_down.fell:
         mode = mode + 1
@@ -188,10 +194,12 @@ while True:
     if mode == 0:
         # Print cumulated FFT values
         value = get_cumulated_fft_values(1)
-        if value >= threshold:
-            draw_text(str(int(value)), x=10, y=15, color=0xff0000)
-        else:
+        if value < threshold-3:
             draw_text(str(int(value)), x=10, y=15, color=0x00ff00)
+        elif value < threshold:
+            draw_text(str(int(value)), x=10, y=15, color=0xffff00)
+        else:
+            draw_text(str(int(value)), x=10, y=15, color=0xff0000)
     elif mode == 1:
         # Draw cumulated FFT values historigram
         draw_historygram(get_cumulated_fft_values(2))
@@ -209,7 +217,7 @@ while True:
             draw_bar(idx, bar[idx], 2)
     elif mode == 3:
         # Change threshold
-        draw_text('Threshold')
+        draw_text(f'Limit\n{threshold}', x=0 , y=2)
     else:
         print('Unvalid mode')
 
