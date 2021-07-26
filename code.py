@@ -9,6 +9,7 @@ import displayio
 import terminalio
 from digitalio import DigitalInOut, Pull
 from adafruit_display_text import label
+import adafruit_imageload
 from adafruit_matrixportal.matrix import Matrix
 from adafruit_debouncer import Debouncer
 
@@ -59,6 +60,26 @@ def draw_text(text, x=14, y=12, color=0xffffff):
     display.rotation=180
     text_area = label.Label(terminalio.FONT, text=text, x=x, y=y, color=color)
     display.show(text_area)
+
+def draw_bitmap(image_name):
+    display.rotation=180
+    bitmap, palette = adafruit_imageload.load(image_name,
+                                         bitmap=displayio.Bitmap,
+                                         palette=displayio.Palette)
+
+    # Make the color at index 0 show as transparent
+    palette.make_transparent(0)
+    # Create a TileGrid to hold the bitmap
+    tile_grid = displayio.TileGrid(bitmap, pixel_shader=palette)
+
+    # Create a Group to hold the TileGrid
+    group = displayio.Group()
+
+    # Add the TileGrid to the Group
+    group.append(tile_grid)
+
+    # Add the Group to the Display
+    display.show(group)
 
 def draw_graph():
     display.rotation=0
@@ -168,6 +189,20 @@ draw_text('dB', x= 10)
 time.sleep(2)
 draw_graph()
 print('start')
+
+draw_bitmap("bmp/g.bmp")
+time.sleep(3)
+draw_bitmap("bmp/o-.bmp")
+time.sleep(3)
+draw_bitmap("bmp/r.bmp")
+time.sleep(3)
+draw_bitmap("bmp/green.bmp")
+time.sleep(3)
+draw_bitmap("bmp/orange.bmp")
+time.sleep(3)
+draw_bitmap("bmp/red.bmp")
+time.sleep(3)
+
 while True:
     button_down.update()
     button_up.update()
@@ -207,8 +242,6 @@ while True:
         # Draw FFT spectrogram
         draw_graph()
         spectrogram = get_fft()
-        for idx in range(0,256):
-            print(f'( {spectrogram[idx]}, {idx})')
 
         for idx in range(0, MATRIX_WIDTH):
             bar[idx] = 0;
