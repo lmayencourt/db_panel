@@ -20,10 +20,24 @@ MATRIX_WIDTH = 32
 MATRIX_HEIGHT = 32
 DELAY = 0.1
 
+# Default threshold value.
+# Modify this number if you want another starting threshold.
+# Range: 1 -> 31
+threshold = 12
 mode = 0
-old_mode = 4
+old_mode = 5
 mode_nbr = old_mode
-threshold = 20
+# Defaulte emoji enable
+# Modify this variable to set enable/disable by default the emoji face.
+# Possible values: 'True' or 'False
+emoji = True
+emoji_average = 0
+emoji_average_count = 0
+emoji_time = time.monotonic()
+# Default emoji face interval in seconds.
+# Modify this value if you want the emoji to be display at another interval.
+# Range: 5 -> 300 secs
+emoji_interval = 20
 
 #--------------------------------------------
 # Matrix
@@ -189,29 +203,20 @@ draw_text('dB', x= 10)
 time.sleep(2)
 draw_graph()
 print('start')
-
-draw_bitmap("bmp/g.bmp")
-time.sleep(3)
-draw_bitmap("bmp/o-.bmp")
-time.sleep(3)
-draw_bitmap("bmp/r.bmp")
-time.sleep(3)
-draw_bitmap("bmp/green.bmp")
-time.sleep(3)
-draw_bitmap("bmp/orange.bmp")
-time.sleep(3)
-draw_bitmap("bmp/red.bmp")
-time.sleep(3)
-
+    
 while True:
     button_down.update()
     button_up.update()
-    if button_up.fell:
-        threshold = threshold + 1
-    if threshold <= 1:
-        threshold = 1
-    elif threshold > 31:
-        threshold = 1
+    if mode != 4:
+        if button_up.fell:
+            threshold = threshold + 1
+        if threshold <= 1:
+            threshold = 1
+        elif threshold > 31:
+            threshold = 1
+    else:
+        if button_up.fell:
+            emoji = not emoji
     
     if button_down.fell:
         mode = mode + 1
@@ -226,6 +231,7 @@ while True:
         draw_graph()
         old_mode = mode
 
+    value = 0
     if mode == 0:
         # Print cumulated FFT values
         value = get_cumulated_fft_values(1)
@@ -237,7 +243,8 @@ while True:
             draw_text(str(int(value)), x=10, y=15, color=0xff0000)
     elif mode == 1:
         # Draw cumulated FFT values historigram
-        draw_historygram(get_cumulated_fft_values(2))
+        value = get_cumulated_fft_values(2)
+        draw_historygram(value)
     elif mode == 2:
         # Draw FFT spectrogram
         draw_graph()
@@ -250,9 +257,30 @@ while True:
             draw_bar(idx, bar[idx], 2)
     elif mode == 3:
         # Change threshold
-        draw_text(f'Limit\n{threshold}', x=0 , y=2)
+        draw_text(f'Limit\n{threshold}', x=0, y=2)
+    elif mode == 4:
+        draw_text(f'Emoji\n{emoji}', x=1, y=2)
     else:
         print('Unvalid mode')
 
+    emoji_average += value
+    emoji_average_count += 1
+    if emoji and mode < 3:
+        if emoji_time+emoji_interval < time.monotonic():
+            emoji_average = emoji_average / emoji_average_count
+            if emoji_average < threshold-3:
+                draw_bitmap("bmp/green.bmp")
+            elif emoji_average < threshold:
+                draw_bitmap("bmp/orange.bmp")
+            else:
+                draw_bitmap("bmp/red.bmp")
+            time.sleep(3)
+            emoji_time = time.monotonic()
+            emoji_average = 0
+            emoji_average_count = 0
+        else:
+            print(f'emoji {emoji_average}/{emoji_average_count} due in {emoji_time}, now: {time.monotonic()}')
+
+    print(f'threshold {threshold}')
     update_display()
     time.sleep(DELAY)
