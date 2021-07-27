@@ -199,8 +199,8 @@ button_up = Debouncer(pin_up)
 # Main
 #--------------------------------------------
 print('start title')
-draw_text('dB', x= 10)
-time.sleep(2)
+draw_text('Affi\ndB', x= 2, y=4)
+time.sleep(1.5)
 draw_graph()
 print('start')
     
@@ -226,8 +226,8 @@ while True:
         mode = 0
 
     if mode != old_mode:
-        draw_text(str(mode))
-        time.sleep(1)
+        draw_text(f'Mode:\n{str(mode)}', x=2, y=4)
+        time.sleep(0.8)
         draw_graph()
         old_mode = mode
 
@@ -236,11 +236,11 @@ while True:
         # Print cumulated FFT values
         value = get_cumulated_fft_values(1)
         if value < threshold-3:
-            draw_text(str(int(value)), x=10, y=15, color=0x00ff00)
+            draw_text(f'Vol:\n  {str(int(value))}', x=2, y=4, color=0x00ff00)
         elif value < threshold:
-            draw_text(str(int(value)), x=10, y=15, color=0xffff00)
+            draw_text(f'Vol:\n  {str(int(value))}', x=2, y=4, color=0xffff00)
         else:
-            draw_text(str(int(value)), x=10, y=15, color=0xff0000)
+            draw_text(f'Vol:\n  {str(int(value))}', x=2, y=4, color=0xff0000)
     elif mode == 1:
         # Draw cumulated FFT values historigram
         value = get_cumulated_fft_values(2)
@@ -257,9 +257,9 @@ while True:
             draw_bar(idx, bar[idx], 2)
     elif mode == 3:
         # Change threshold
-        draw_text(f'Limit\n{threshold}', x=0, y=2)
+        draw_text(f'Limit\n{threshold}', x=0, y=4)
     elif mode == 4:
-        draw_text(f'Emoji\n{emoji}', x=1, y=2)
+        draw_text(f'Emoji\n{emoji}', x=1, y=4)
     else:
         print('Unvalid mode')
 
